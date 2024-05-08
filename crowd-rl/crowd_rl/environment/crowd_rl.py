@@ -44,11 +44,16 @@ class raw_env(AECEnv, EzPickle):
         render_mode: str | None = None,
         render_fps: int = 15,
         screen_scaling: int = 12,
+        max_cycles: int = 900,
     ):
         EzPickle.__init__(self, config, render_mode, screen_scaling)
         super().__init__()
 
         self.config = config
+        self.max_cycles = max_cycles
+
+        self.frames = 0
+        self.run = True
 
         # Constants derived from config
         self._seed(config.seed)
@@ -146,6 +151,8 @@ class raw_env(AECEnv, EzPickle):
         self._agent_selector = agent_selector(self.agents)
 
     def reset(self, seed=None, options=None):
+        self.frames = 0
+
         self.agents_data: dict[str, Agent] = deepcopy(self.init_agent_data)
         self.attendants_data: dict[str, Attendant] = deepcopy(self.init_attendants_data)
         self.queues_data: list[list[Queue]] = deepcopy(self.init_queue_data)
@@ -181,7 +188,7 @@ class raw_env(AECEnv, EzPickle):
         if self._agent_selector.is_last():
             self._update_attendants()
             self._update_queues()
-            # self._allocate_rewards()
+            self._allocate_rewards()
             self._update_exit()
             self._update_door()
 
@@ -189,6 +196,13 @@ class raw_env(AECEnv, EzPickle):
 
             if self.render_mode == "human":
                 self.render()
+
+            self.frames += 1
+
+        terminate = not self.run
+        truncate = self.frames >= self.max_cycles
+        self.terminations = {a: terminate for a in self.possible_agents}
+        self.truncations = {a: truncate for a in self.possible_agents}
 
         if len(self._agent_selector.agent_order):
             self.agent_selection = self._agent_selector.next()
@@ -608,10 +622,12 @@ class raw_env(AECEnv, EzPickle):
         return dist_map
 
     def _allocate_rewards(self):
-        self.rewards = {i: -1 for i in self.agents}
-        return
-        for key, agent in self.agents_data.items():
-            if not self.done[key] and not agent.waiting and not agent.undeployed:
+        self.rewards = {
+            i: -1 if self.agents_data[i].deployed else 0 for i in self.possible_agents
+        }
+        for key in self.agents:
+            agent = self.agents_data[key]
+            if not agent.in_queue and not agent.in_attendance:
                 dist_map = self.agent_dist_map[key]
 
                 current_pos = agent.pos
