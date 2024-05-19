@@ -1,7 +1,7 @@
 # Crowd-RL
 Protótipo de ambiente multiagente para aprendizado por reforço utilizando PettingZoo.
 
-O ambiente busca simular o fluxo de atendimento em um local fechado, do modo que, um agente entra em um local, encontra uma fila, é atendido e se retira.
+O ambiente busca resolver o problema de pathfinding e simular o fluxo de atendimento em um local fechado, do modo que, um agente entra em um local, encontra uma fila, é atendido e se retira.
 
 É possivel configurar diversos aspectos do ambiente, como a planta, os tipos de agentes, quais filas podem acessar e etc.
 
