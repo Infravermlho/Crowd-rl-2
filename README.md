@@ -7,5 +7,5 @@ O ambiente busca simular o fluxo de atendimento em um local fechado, do modo que
 ## Instalação
 ```bash
 git clone https://github.com/Infravermlho/crowd-rl
-pip install crowd-rl
+pip install ./crowd-rl
 ```
