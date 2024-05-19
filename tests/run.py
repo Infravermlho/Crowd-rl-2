@@ -16,7 +16,7 @@ queues_data = {}
 
 # Mall, Shop, Health
 if __name__ == "__main__":
-    env = crowd.env(config=mall.env_config, render_mode="human", render_fps=12)
+    env = crowd.env(config=mall.dict_config, render_mode="human", render_fps=12)
     env.reset(seed=42)
 
     for agent in env.agent_iter():
@@ -32,11 +32,9 @@ if __name__ == "__main__":
             action = action[random.randint(0, len(action) - 1)]
             action += 1
 
-
         agent_data[env.frames] = deepcopy(env.agents_data)
         attendant_data[env.frames] = deepcopy(env.attendants_data)
         queues_data[env.frames] = deepcopy(env.queues_data)
-
 
         env.step(action)
 

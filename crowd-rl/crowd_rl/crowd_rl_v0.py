@@ -8,7 +8,7 @@ from crowd_rl.environment.schema import (
     Exit,
     Group,
     Queue,
-    json_to_config,
+    dict_to_config,
 )
 
-__all__ = ["env", "raw_env", "parallel_env", "Config", "json_to_world"]
+__all__ = ["env", "raw_env", "parallel_env", "Config", "dict_to_config"]

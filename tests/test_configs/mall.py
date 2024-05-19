@@ -1,5 +1,76 @@
-from crowd_rl.crowd_rl_v0 import Agent, Attendant, Config, Coords, Entrance, Exit, Queue
+from crowd_rl.crowd_rl_v0 import Attendant, Config, Coords, Entrance, Exit, Queue
 from crowd_rl.environment.schema import Group
+
+dict_config = {
+    "attendants": [
+        {"id": "c1", "pos": {"x": 2, "y": 1}, "processing_time": [20, 50]},
+        {"id": "c2", "pos": {"x": 4, "y": 1}, "processing_time": [10, 20]},
+        {"id": "c3", "pos": {"x": 6, "y": 1}, "processing_time": [10, 20]},
+        {"id": "p1", "pos": {"x": 9, "y": 1}, "processing_time": 30},
+    ],
+    "queues": [
+        {
+            "order": 0,
+            "accepts": ["common", "pref"],
+            "attendants": ["c1", "c2", "c3"],
+            "wait_spots": [
+                {"x": 1, "y": 4},
+                {"x": 1, "y": 5},
+                {"x": 2, "y": 5},
+                {"x": 3, "y": 5},
+                {"x": 4, "y": 5},
+                {"x": 5, "y": 5},
+                {"x": 6, "y": 5},
+                {"x": 7, "y": 5},
+                {"x": 7, "y": 6},
+                {"x": 7, "y": 7},
+                {"x": 6, "y": 7},
+                {"x": 5, "y": 7},
+                {"x": 4, "y": 7},
+                {"x": 3, "y": 7},
+                {"x": 2, "y": 7},
+                {"x": 1, "y": 7},
+                {"x": 1, "y": 8},
+            ],
+        },
+        {
+            "order": 0,
+            "accepts": ["pref"],
+            "attendants": ["p1"],
+            "wait_spots": [
+                {"x": 9, "y": 4},
+                {"x": 9, "y": 5},
+                {"x": 9, "y": 6},
+                {"x": 9, "y": 7},
+                {"x": 9, "y": 8},
+            ],
+        },
+    ],
+    "entrances": [{"pos": {"x": 0, "y": 11}, "rate": 5, "accepts": ["common", "pref"]}],
+    "exits": [
+        {"pos": {"x": 14, "y": 0}, "accepts": ["pref"]},
+        {"pos": {"x": 14, "y": 0}, "accepts": ["common", "pref"]},
+    ],
+    "groups": [
+        {"name": "common", "amount": 15, "starting_products": 5},
+        {"name": "pref", "amount": 5, "starting_products": [5, 7]},
+    ],
+    "worldmap": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
+    ],
+}
 
 attendants = [
     Attendant(
@@ -58,7 +129,7 @@ exits = [
 ]
 
 groups = [
-    Group(name="common", amount=15, starting_products=(2, 5)),
+    Group(name="common", amount=15, starting_products=0),
     Group(name="pref", amount=5, starting_products=(5, 7)),
 ]
 

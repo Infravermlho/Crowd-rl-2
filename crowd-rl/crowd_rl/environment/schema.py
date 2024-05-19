@@ -21,7 +21,7 @@ class Coords(BaseModel):
 class Agent(BaseModel):
     id: str
     group: str
-    starting_products: Tuple[int, int] | int
+    starting_products: Tuple[int, int] | int = 0
 
     products: int = 0
     pos: Coords = Coords(x=-1, y=-1)
@@ -37,7 +37,7 @@ class Agent(BaseModel):
 class Group(BaseModel):
     name: str
     amount: int
-    starting_products: Tuple[int, int] | int
+    starting_products: Tuple[int, int] | int = 0
 
 
 class Entrance(BaseModel):
@@ -91,6 +91,7 @@ class Config(BaseModel):
     entrances: List[Entrance]
     groups: List[Group]
     attendants: List[Attendant]
+    agents: List[Agent] = []
 
     seed: Optional[int] = None
 
@@ -105,5 +106,29 @@ class Config(BaseModel):
         return len(self.worldmap[0])
 
 
-def json_to_config(json_world):
-    return Config(**json_world)
+def dict_to_config(json_world):
+    queues = list(
+        dict(x, wait_spots=list(Coords(**y) for y in x["wait_spots"]))
+        for x in json_world["queues"]
+    )
+    exits = list(dict(x, pos=(Coords(**x["pos"]))) for x in json_world["exits"])
+    entrances = list(dict(x, pos=(Coords(**x["pos"]))) for x in json_world["entrances"])
+    attendants = list(
+        dict(x, pos=(Coords(**x["pos"]))) for x in json_world["attendants"]
+    )
+
+    if "agents" in json_world:
+        agents = list(dict(x, pos=(Coords(**x["pos"]))) for x in json_world["agents"])
+    else:
+        agents = []
+
+    world = {
+        "worldmap": json_world["worldmap"],
+        "queues": list(Queue(**x) for x in queues),
+        "exits": list(Exit(**x) for x in exits),
+        "entrances": list(Entrance(**x) for x in entrances),
+        "groups": list(Group(**x) for x in json_world["groups"]),
+        "attendants": list(Attendant(**x) for x in attendants),
+        "agents": list(Agent(**x) for x in agents),
+    }
+    return Config(**world)

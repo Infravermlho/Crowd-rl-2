@@ -1,6 +1,5 @@
-import functools
 import os
-import random
+import pickle
 from collections import deque
 from copy import copy, deepcopy
 from typing import Tuple
@@ -17,7 +16,16 @@ from pettingzoo.utils.agent_selector import agent_selector
 from pettingzoo.utils.conversions import parallel_wrapper_fn
 
 from .pygame_utils import fill, get_image
-from .schema import Agent, Attendant, Config, Entrance, Exit, Queue
+from .schema import (
+    Agent,
+    Attendant,
+    Config,
+    Coords,
+    Entrance,
+    Exit,
+    Queue,
+    dict_to_config,
+)
 
 
 def env(**kwargs):
@@ -40,48 +48,64 @@ class raw_env(AECEnv, EzPickle):
 
     def __init__(
         self,
-        config: Config,
+        config: Config | dict,
         render_mode: str | None = None,
         render_fps: int = 15,
         screen_scaling: int = 12,
         max_cycles: int = 900,
+        queue_bias: int = 2,
     ):
         EzPickle.__init__(self, config, render_mode, screen_scaling)
         super().__init__()
 
-        self.config = config
+        if isinstance(config, Config):
+            self.config = config
+        else:
+            self.config = dict_to_config(config)
+
         self.max_cycles = max_cycles
+        self.queue_bias = queue_bias
 
         self.frames = 0
         self.run = True
 
         # Constants derived from config
-        self._seed(config.seed)
+        self._seed(self.config.seed)
         self.map = np.array(self.config.worldmap, dtype=np.int8)
         self.colision = self.map[:]
         self.height = self.config.height
         self.width = self.config.width
         self.max_progress = max(list(x.order for x in self.config.queues)) + 1
 
-        self.init_agent_data = {}
+        self.init_agents_data = {}
         self.init_attendants_data = {}
-        self.init_queue_data = [[] for _ in range(self.max_progress)]
+        self.init_queues_data = [[] for _ in range(self.max_progress)]
         # --
 
-        # Setting init_agent_data
+        # Setting init_agents_data
+        for agent in self.config.agents:
+            if agent.pos == Coords(x=-1, y=-1):
+                raise ValueError(
+                    "Agents inserted directly trought the config must have a valid pos set"
+                )
+
+            i = len(self.init_agents_data)
+            agent.deployed = True
+            self.init_agents_data[f"agent_{i}"] = agent
+
         for group in self.config.groups:
             for _ in range(group.amount):
-                i = len(self.init_agent_data)
-                self.init_agent_data[f"agent_{i}"] = Agent(
+                i = len(self.init_agents_data)
+                self.init_agents_data[f"agent_{i}"] = Agent(
                     id=f"agent_{i}",
                     group=group.name,
                     starting_products=group.starting_products,
                 )
         # --
 
-        # Setting init_queue_data
+        # Setting init_queues_data
         for queue in self.config.queues:
-            self.init_queue_data[queue.order].append(queue)
+            self.init_queues_data[queue.order].append(queue)
         # --
 
         # Setting init_attendants_data
@@ -90,14 +114,25 @@ class raw_env(AECEnv, EzPickle):
         # --
 
         # World vars
-        self.possible_agents = list(self.init_agent_data)
+        self.possible_agents = list(self.init_agents_data)
         self.agents = []
 
-        self.agents_data: dict[str, Agent] = deepcopy(self.init_agent_data)
-        self.attendants_data: dict[str, Attendant] = deepcopy(self.init_attendants_data)
-        self.queues_data: list[list[Queue]] = deepcopy(self.init_queue_data)
-        self.entrances_data: list[Entrance] = deepcopy(self.config.entrances)
-        self.exits_data: list[Exit] = deepcopy(self.config.exits)
+        # Pickling Init Dicts
+        # doing this so I dont need to use deepcopy(tends to be expensive) every reset
+        self.s_init_agents_data = pickle.dumps(self.init_agents_data)
+        self.s_init_attendants_data = pickle.dumps(self.init_attendants_data)
+        self.s_init_queues_data = pickle.dumps(self.init_queues_data)
+        self.s_init_entrances_data = pickle.dumps(self.config.entrances)
+        self.s_init_exits_data = pickle.dumps(self.config.exits)
+        # --
+
+        self.agents_data: dict[str, Agent] = pickle.loads(self.s_init_agents_data)
+        self.attendants_data: dict[str, Attendant] = pickle.loads(
+            self.s_init_attendants_data
+        )
+        self.queues_data: list[list[Queue]] = pickle.loads(self.s_init_queues_data)
+        self.entrances_data: list[Entrance] = pickle.loads(self.s_init_entrances_data)
+        self.exits_data: list[Exit] = pickle.loads(self.s_init_exits_data)
 
         self.agent_dist_map = {i: None for i in self.possible_agents}
         # --
@@ -132,7 +167,7 @@ class raw_env(AECEnv, EzPickle):
             for i in self.unflattened_observation_spaces
         }
 
-        self._action_spaces = {i: spaces.Discrete(6) for i in self.possible_agents}
+        self._action_spaces = {i: spaces.Discrete(5) for i in self.possible_agents}
 
         self.observation_space = lambda agent: self._observation_spaces[agent]
         self.action_space = lambda agent: self._action_spaces[agent]
@@ -153,11 +188,13 @@ class raw_env(AECEnv, EzPickle):
     def reset(self, seed=None, options=None):
         self.frames = 0
 
-        self.agents_data: dict[str, Agent] = deepcopy(self.init_agent_data)
-        self.attendants_data: dict[str, Attendant] = deepcopy(self.init_attendants_data)
-        self.queues_data: list[list[Queue]] = deepcopy(self.init_queue_data)
-        self.entrances_data: list[Entrance] = deepcopy(self.config.entrances)
-        self.exits_data: list[Exit] = deepcopy(self.config.exits)
+        self.agents_data: dict[str, Agent] = pickle.loads(self.s_init_agents_data)
+        self.attendants_data: dict[str, Attendant] = pickle.loads(
+            self.s_init_attendants_data
+        )
+        self.queues_data: list[list[Queue]] = pickle.loads(self.s_init_queues_data)
+        self.entrances_data: list[Entrance] = pickle.loads(self.s_init_entrances_data)
+        self.exits_data: list[Exit] = pickle.loads(self.s_init_exits_data)
         self.colision = copy(self.map)
 
         self.agent_dist_map = {i: None for i in self.possible_agents}
@@ -170,6 +207,7 @@ class raw_env(AECEnv, EzPickle):
         self.infos = {i: {} for i in self.possible_agents}
 
         self.agents = []
+
         self._first_deployments()
 
         self._agent_selector.reinit(self.agents)
@@ -273,8 +311,8 @@ class raw_env(AECEnv, EzPickle):
         for _exit in self.exits_data:
             full_feature_map[_exit.pos.y][_exit.pos.x] = 5
 
-        for _, agent_char in self.agents_data.items():
-            if agent_char.deployed:
+        for agent_char in list(x for x in self.agents_data.values() if x.deployed):
+            if agent_char.products > 0:
                 text_list.append(
                     (
                         agent_char.pos.tuple,
@@ -284,9 +322,9 @@ class raw_env(AECEnv, EzPickle):
                     )
                 )
 
-                full_feature_map[agent_char.pos.y][agent_char.pos.x] = self.group_map[
-                    agent_char.group
-                ]
+            full_feature_map[agent_char.pos.y][agent_char.pos.x] = self.group_map[
+                agent_char.group
+            ]
 
         for index, tile in enumerate(full_feature_map.flat):
             x = index % self.width
@@ -366,13 +404,13 @@ class raw_env(AECEnv, EzPickle):
             )
 
             if busy:
-                min_busy = min(busy)
+                min_busy = min(busy) + 1
 
                 free_queues = list(
                     queue.wait_spots[queue.busy].tuple
                     for queue in self.queues_data[agent.progress]
                     if not queue.full
-                    and queue.busy < min_busy + 2
+                    and queue.busy < min_busy + self.queue_bias
                     and agent.group in queue.accepts
                 )
             else:
@@ -489,6 +527,7 @@ class raw_env(AECEnv, EzPickle):
 
         if accepted_agents:
             rand = self.np_random.integers(0, len(accepted_agents))
+
             return accepted_agents[rand]
 
         return None
@@ -496,6 +535,9 @@ class raw_env(AECEnv, EzPickle):
     def _first_deployments(self):
         fastest_door: Entrance | None = None
         deployee: Agent | None = None
+
+        for pre_deployed in list(x for x in self.agents_data.values() if x.deployed):
+            pre_deployed.products = self._get_interval(pre_deployed.starting_products)
 
         for entrance in self.entrances_data:
             deployee = self._get_next_agent(entrance.accepts)
@@ -544,7 +586,7 @@ class raw_env(AECEnv, EzPickle):
                     if agent.progress >= self.max_progress:
                         self.colision[agent.pos.y][agent.pos.x] = 0
                         self.agents.remove(key)
-                        self.agents_data[key] = deepcopy(self.init_agent_data[key])
+                        self.agents_data[key] = deepcopy(self.init_agents_data[key])
 
     def _agent_act(self, agent_id: str, action: int):
         # [no_action, move_left, move_right, move_down, move_up]
