@@ -1,8 +1,8 @@
 import os
 import pickle
+import warnings
 from collections import deque
-from copy import copy, deepcopy
-from typing import Tuple
+from copy import copy
 
 import distinctipy
 import gymnasium
@@ -27,6 +27,9 @@ from .schema import (
     dict_to_config,
 )
 
+# Duct tape fix to prevent serialization warnings happening on _collect_data()
+warnings.filterwarnings("ignore", category=UserWarning)
+
 
 def env(**kwargs):
     env = raw_env(**kwargs)
@@ -43,7 +46,7 @@ class raw_env(AECEnv, EzPickle):
         "render_modes": ["human", "rgb_array"],
         "name": "crowd_rl_v0",
         "is_parallelizable": True,
-        "render_fps": 10,
+        "render_fps": 15,
     }
 
     def __init__(
@@ -51,17 +54,27 @@ class raw_env(AECEnv, EzPickle):
         config: Config | dict,
         render_mode: str | None = None,
         render_fps: int = 15,
-        screen_scaling: int = 12,
         max_cycles: int = 900,
         queue_bias: int = 2,
+        collect_data: bool = False,
     ):
-        EzPickle.__init__(self, config, render_mode, screen_scaling)
+        EzPickle.__init__(
+            self, config, render_mode, render_fps, max_cycles, queue_bias, collect_data
+        )
         super().__init__()
 
         if isinstance(config, Config):
             self.config = config
         else:
             self.config = dict_to_config(config)
+
+        if collect_data:
+            print(
+                "collect_data is set as true! this can cause significant slowdown during env execution"
+            )
+            self.data = {"agents": [], "attendants": [], "queues": []}
+        else:
+            self.data = None
 
         self.max_cycles = max_cycles
         self.queue_bias = queue_bias
@@ -124,6 +137,9 @@ class raw_env(AECEnv, EzPickle):
         self.s_init_queues_data = pickle.dumps(self.init_queues_data)
         self.s_init_entrances_data = pickle.dumps(self.config.entrances)
         self.s_init_exits_data = pickle.dumps(self.config.exits)
+        self.individual_pickled_agents = {
+            key: pickle.dumps(data) for key, data in self.init_agents_data.items()
+        }
         # --
 
         self.agents_data: dict[str, Agent] = pickle.loads(self.s_init_agents_data)
@@ -234,6 +250,9 @@ class raw_env(AECEnv, EzPickle):
 
             if self.render_mode == "human":
                 self.render()
+
+            if self.data:
+                self._collect_data()
 
             self.frames += 1
 
@@ -356,6 +375,9 @@ class raw_env(AECEnv, EzPickle):
         if self.screen is not None:
             pygame.quit()
         self.screen = None
+
+        if self.data:
+            return self.data
 
     def _get_agent_dist_map(self, agent_id):
         self.agent_dist_map[agent_id] = self._distance_map_merge_targets(
@@ -564,7 +586,9 @@ class raw_env(AECEnv, EzPickle):
 
         agent.deployed = True
         agent.products = self._get_interval(agent.starting_products)
-        self.agents.append(agent.id)
+        self.agents = [
+            agent for agent in self.possible_agents if self.agents_data[agent].deployed
+        ]
         entrance.cooldown = entrance.rate
 
     def _update_door(self):
@@ -586,7 +610,9 @@ class raw_env(AECEnv, EzPickle):
                     if agent.progress >= self.max_progress:
                         self.colision[agent.pos.y][agent.pos.x] = 0
                         self.agents.remove(key)
-                        self.agents_data[key] = deepcopy(self.init_agents_data[key])
+                        self.agents_data[key] = pickle.loads(
+                            self.individual_pickled_agents[key]
+                        )
 
     def _agent_act(self, agent_id: str, action: int):
         # [no_action, move_left, move_right, move_down, move_up]
@@ -662,6 +688,23 @@ class raw_env(AECEnv, EzPickle):
                         q.append(next_node)
 
         return dist_map
+
+    def _collect_data(self):
+        assert self.data
+        for data in self.agents_data.values():
+            data_agent = data.model_dump()
+            data_agent["step"] = self.frames
+            self.data["agents"].append(data_agent)
+        for data in self.attendants_data.values():
+            data_attendants = data.model_dump()
+            data_attendants["step"] = self.frames
+            self.data["attendants"].append(data_attendants)
+        for order, q_data in enumerate(self.queues_data):
+            for data in q_data:
+                data_queues = data.model_dump()
+                data_queues["step"] = self.frames
+                data_queues["order"] = order
+                self.data["queues"].append(data_queues)
 
     def _allocate_rewards(self):
         self.rewards = {

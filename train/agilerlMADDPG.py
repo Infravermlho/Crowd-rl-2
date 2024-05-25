@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import torch
 from agilerl.algorithms.maddpg import MADDPG
@@ -6,27 +8,23 @@ from crowd_rl import crowd_rl_v0 as crowd
 from crowd_rl.sample_configs import mall
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+mall["groups"][0]["amount"] = 1
+mall["groups"][1]["amount"] = 0
+
 env = crowd.parallel_env(config=mall)
 env.reset()
 
-NET_CONFIG = {
-    "arch": "mlp",  # Network architecture
-    "hidden_size": [32, 32],  # Network hidden size
-}
-
-
-# Configure the multi-agent algo input arguments
+# State Space configs
 state_dim = [env.observation_space(agent).shape for agent in env.possible_agents]
 one_hot = False
 
+# Action Space configs
 action_dim = [env.action_space(agent).n for agent in env.possible_agents]
 discrete_actions = True
 max_action = None
 min_action = None
 
-# We dont use images
 channels_last = False
-
 n_agents = env.max_num_agents
 agent_ids = [agent_id for agent_id in env.possible_agents]
 field_names = ["state", "action", "reward", "next_state", "done"]
@@ -44,17 +42,17 @@ agent = MADDPG(
     min_action=min_action,
     discrete_actions=discrete_actions,
     device=device,
-    net_config=NET_CONFIG,
 )
 
 episodes = 1000
-max_steps = 70
+max_steps = 25
 epsilon = 1.0
 eps_end = 0.1
 eps_decay = 0.995
 
 dead_state = {
-    agent_id: np.zeros(state_dim[i]) for i, agent_id in enumerate(env.possible_agents)
+    agent_id: np.zeros(state_dim[i], dtype=np.float32)
+    for i, agent_id in enumerate(env.possible_agents)
 }
 dead_reward = {agent_id: 0 for agent_id in env.possible_agents}
 
@@ -64,9 +62,9 @@ for ep in range(episodes):
 
     agent_reward = {agent_id: 0 for agent_id in env.possible_agents}
     for _ in range(max_steps):
-        # Get next action from agent
         cont_actions, discrete_action = agent.getAction(state, epsilon)
         action = discrete_action
+        print(action)
 
         next_state, reward, termination, truncation, info = env.step(
             action
