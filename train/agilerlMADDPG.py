@@ -14,41 +14,34 @@ mall["groups"][1]["amount"] = 0
 env = crowd.parallel_env(config=mall)
 env.reset()
 
-# State Space configs
-state_dim = [env.observation_space(agent).shape for agent in env.possible_agents]
-one_hot = False
+# Actions and State sizes
+state_dim = list(env.observation_space(agent).shape for agent in env.possible_agents)
+action_dim = list(env.action_space(agent).n for agent in env.possible_agents)
 
-# Action Space configs
-action_dim = [env.action_space(agent).n for agent in env.possible_agents]
-discrete_actions = True
-max_action = None
-min_action = None
-
-channels_last = False
 n_agents = env.max_num_agents
-agent_ids = [agent_id for agent_id in env.possible_agents]
+agent_ids = list(agent_id for agent_id in env.possible_agents)
+
 field_names = ["state", "action", "reward", "next_state", "done"]
 memory = MultiAgentReplayBuffer(
-    memory_size=1_000_000, field_names=field_names, agent_ids=agent_ids, device=device
+    memory_size=1000, field_names=field_names, agent_ids=agent_ids, device=device
 )
-
 agent = MADDPG(
     state_dims=state_dim,
     action_dims=action_dim,
-    one_hot=one_hot,
     n_agents=n_agents,
     agent_ids=agent_ids,
-    max_action=max_action,
-    min_action=min_action,
-    discrete_actions=discrete_actions,
+    discrete_actions=True,
+    max_action=None,
+    min_action=None,
+    one_hot=False,
     device=device,
 )
 
-episodes = 1000
-max_steps = 25
-epsilon = 1.0
-eps_end = 0.1
-eps_decay = 0.995
+EPISODES = 1000
+MAX_STEPS = 50
+EPSILON = 1.0
+EPS_END = 0.1
+EPS_DECAY = 0.995
 
 dead_state = {
     agent_id: np.zeros(state_dim[i], dtype=np.float32)
@@ -56,21 +49,27 @@ dead_state = {
 }
 dead_reward = {agent_id: 0 for agent_id in env.possible_agents}
 
-for ep in range(episodes):
+for ep in range(EPISODES):
     state, info = env.reset()  # Reset environment at start of episode
-    state = dead_state | state
+    # state = dead_state | state
 
     agent_reward = {agent_id: 0 for agent_id in env.possible_agents}
-    for _ in range(max_steps):
-        cont_actions, discrete_action = agent.getAction(state, epsilon)
+    for _ in range(MAX_STEPS):
+        cont_actions, discrete_action = agent.getAction(state, EPSILON)
         action = discrete_action
-        print(action)
 
         next_state, reward, termination, truncation, info = env.step(
             action
         )  # Act in environment
+
         reward = dead_reward | reward
         next_state = dead_state | next_state
+
+        # Debug asserts
+        assert state_dim == list(x.shape for x in state.values())
+        assert state_dim == list(x.shape for x in next_state.values())
+        assert list(agent_reward.keys()) == list(reward.keys())
+        # ---
 
         # Save experiences to replay buffer
         memory.save2memory(state, action, reward, next_state, termination)
@@ -95,5 +94,5 @@ for ep in range(episodes):
     score = sum(agent_reward.values())
     agent.scores.append(score)
 
-    # Update epsilon for exploration
-    epsilon = max(eps_end, epsilon * eps_decay)
+    # Update EPSILON for exploration
+    EPSILON = max(EPS_END, EPSILON * EPS_DECAY)

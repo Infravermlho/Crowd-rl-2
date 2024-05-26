@@ -72,6 +72,8 @@ if __name__ == "__main__":
     INIT_HP["N_AGENTS"] = env.num_agents
     INIT_HP["AGENT_IDS"] = env.agents
 
+    print(state_dim)
+    print(action_dim)
     # Create a population ready for evolutionary hyper-parameter optimisation
     pop = initialPopulation(
         INIT_HP["ALGO"],
@@ -163,6 +165,9 @@ if __name__ == "__main__":
                 next_state, reward, termination, truncation, info = env.step(
                     action
                 )  # Act in environment
+                print(reward)
+                print(next_state)
+                print(termination)
 
                 # Image processing if necessary for the environment
                 if INIT_HP["CHANNELS_LAST"]:
@@ -172,6 +177,7 @@ if __name__ == "__main__":
                         for agent_id, ns in next_state.items()
                     }
 
+                print(state)
                 # Save experiences to replay buffer
                 memory.save2memory(state, cont_actions, reward, next_state, termination)
 
@@ -186,7 +192,6 @@ if __name__ == "__main__":
                     experiences = memory.sample(
                         agent.batch_size
                     )  # Sample replay buffer
-                    print(experiences)
                     agent.learn(experiences)  # Learn according to agent's RL algorithm
 
                 # Update the state
