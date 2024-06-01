@@ -7,7 +7,6 @@ from crowd_rl import crowd_rl_v0 as crowd
 from crowd_rl.policies import shortest_distance
 from crowd_rl.sample_configs import mall
 
-# Mall, Shop, Health
 if __name__ == "__main__":
     env = crowd.env(config=mall, collect_data=True, render_mode="human", render_fps=12)
     env.reset(seed=42)

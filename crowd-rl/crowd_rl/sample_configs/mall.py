@@ -49,8 +49,8 @@ dict_config = {
         {"pos": {"x": 14, "y": 0}, "accepts": ["common", "pref"]},
     ],
     "groups": [
-        {"name": "common", "amount": 15, "starting_products": 5},
-        {"name": "pref", "amount": 5, "starting_products": [5, 7]},
+        {"name": "common", "amount": 15, "starting_products": [1, 5]},
+        {"name": "pref", "amount": 5, "starting_products": [2, 4]},
     ],
     "worldmap": [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],

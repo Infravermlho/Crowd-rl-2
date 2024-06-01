@@ -1,4 +1,9 @@
-from copy import deepcopy
+"""
+Lembre de usar a mesma
+configuração entre o _train e _watch
+"""
+
+import os
 
 import numpy as np
 import torch
@@ -8,8 +13,7 @@ from crowd_rl import crowd_rl_v0 as crowd
 from crowd_rl.sample_configs import mall
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-mall["groups"][0]["amount"] = 1
-mall["groups"][1]["amount"] = 0
+print("===== Demo AgileRL MADDPG Crowd-RL =====")
 
 env = crowd.parallel_env(config=mall)
 env.reset()
@@ -25,6 +29,7 @@ field_names = ["state", "action", "reward", "next_state", "done"]
 memory = MultiAgentReplayBuffer(
     memory_size=1000, field_names=field_names, agent_ids=agent_ids, device=device
 )
+
 agent = MADDPG(
     state_dims=state_dim,
     action_dims=action_dim,
@@ -38,7 +43,7 @@ agent = MADDPG(
 )
 
 EPISODES = 1000
-MAX_STEPS = 50
+MAX_STEPS = 500
 EPSILON = 1.0
 EPS_END = 0.1
 EPS_DECAY = 0.995
@@ -51,7 +56,7 @@ dead_reward = {agent_id: 0 for agent_id in env.possible_agents}
 
 for ep in range(EPISODES):
     state, info = env.reset()  # Reset environment at start of episode
-    # state = dead_state | state
+    state = dead_state | state
 
     agent_reward = {agent_id: 0 for agent_id in env.possible_agents}
     for _ in range(MAX_STEPS):
@@ -62,17 +67,10 @@ for ep in range(EPISODES):
             action
         )  # Act in environment
 
-        reward = dead_reward | reward
         next_state = dead_state | next_state
 
-        # Debug asserts
-        assert state_dim == list(x.shape for x in state.values())
-        assert state_dim == list(x.shape for x in next_state.values())
-        assert list(agent_reward.keys()) == list(reward.keys())
-        # ---
-
         # Save experiences to replay buffer
-        memory.save2memory(state, action, reward, next_state, termination)
+        memory.save2memory(state, cont_actions, reward, next_state, termination)
 
         for agent_id, r in reward.items():
             agent_reward[agent_id] += r
@@ -96,3 +94,9 @@ for ep in range(EPISODES):
 
     # Update EPSILON for exploration
     EPSILON = max(EPS_END, EPSILON * EPS_DECAY)
+
+path = "./models/MADDPG"
+filename = "MADDPG_trained_agent.pt"
+os.makedirs(path, exist_ok=True)
+save_path = os.path.join(path, filename)
+agent.saveCheckpoint(save_path)

@@ -9,7 +9,6 @@ dependencies = [
     "pygame",
     "pydantic",
     "wheel",
-    "stable-baselines3",
     "supersuit",
     "distinctipy"
 ]
