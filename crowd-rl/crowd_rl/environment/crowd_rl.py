@@ -16,16 +16,8 @@ from pettingzoo.utils.agent_selector import agent_selector
 from pettingzoo.utils.conversions import parallel_wrapper_fn
 
 from .pygame_utils import fill, get_image
-from .schema import (
-    Agent,
-    Attendant,
-    Config,
-    Coords,
-    Entrance,
-    Exit,
-    Queue,
-    dict_to_config,
-)
+from .schema import (Agent, Attendant, Config, Coords, Entrance, Exit, Queue,
+                     dict_to_config)
 
 # Duct tape fix to prevent serialization warnings happening on _collect_data()
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -88,11 +80,12 @@ class raw_env(AECEnv, EzPickle):
         self.colision = self.map[:]
         self.height = self.config.height
         self.width = self.config.width
-        self.max_progress = max(list(x.order for x in self.config.queues)) + 1
 
         self.init_agents_data = {}
         self.init_attendants_data = {}
-        self.init_queues_data = [[] for _ in range(self.max_progress)]
+        self.init_queues_data = [
+            [] for _ in range(max(list(x.order for x in self.config.queues)) + 1)
+        ]
         # --
 
         # Setting init_agents_data
@@ -128,6 +121,14 @@ class raw_env(AECEnv, EzPickle):
 
         # World vars
         self.possible_agents = list(self.init_agents_data)
+        self.max_progress = {
+            key: max(
+                list(x.order for x in self.config.queues if value.group in x.accepts),
+                default=-1,
+            )
+            + 1
+            for key, value in self.init_agents_data.items()
+        }
         self.agents = []
 
         # Pickling Init Dicts
@@ -192,7 +193,9 @@ class raw_env(AECEnv, EzPickle):
         self.metadata["render_fps"] = render_fps
         self.render_mode = render_mode
         self.group_map = {}
-        self.tile_map = self._load_images() if render_mode == "human" else {}
+        self.tile_map = (
+            self._load_images() if render_mode in ["human", "rgb_array"] else {}
+        )
 
         self.screen = None
         self.font = None
@@ -410,7 +413,7 @@ class raw_env(AECEnv, EzPickle):
         target_array = np.full((self.max_targets, 2), -1, "int16")
         agent = self.agents_data[agent_id]
 
-        if agent.progress >= self.max_progress:
+        if agent.progress >= self.max_progress[agent.id]:
             targets = [x.pos.tuple for x in self.exits_data if agent.group in x.accepts]
             target_array[: len(targets)] = np.array(targets, "int16")
 
@@ -511,7 +514,7 @@ class raw_env(AECEnv, EzPickle):
                         agent.in_attendance = False
                         agent.progress += 1
 
-                        if agent.progress < self.max_progress:
+                        if agent.progress < self.max_progress[agent.id]:
                             # agent.products = agent.starting_products
                             while not [
                                 i
@@ -519,7 +522,7 @@ class raw_env(AECEnv, EzPickle):
                                 if agent.group in i.accepts
                             ]:
                                 agent.progress += 1
-                                if agent.progress >= self.max_progress:
+                                if agent.progress >= self.max_progress[agent.id]:
                                     break
                     else:
                         attendant.cooldown = self._get_interval(
@@ -607,7 +610,7 @@ class raw_env(AECEnv, EzPickle):
         for _exit in self.exits_data:
             for key, agent in self.agents_data.items():
                 if agent.pos.tuple == _exit.pos.tuple:
-                    if agent.progress >= self.max_progress:
+                    if agent.progress >= self.max_progress[agent.id]:
                         self.colision[agent.pos.y][agent.pos.x] = 0
                         self.agents.remove(key)
                         self.agents_data[key] = pickle.loads(
@@ -721,7 +724,7 @@ class raw_env(AECEnv, EzPickle):
                 if agent.proximity is None:
                     agent.proximity = current_dist
                 elif agent.proximity > current_dist:
-                    self.rewards[key] = 1
+                    self.rewards[key] = 0
                     agent.proximity = current_dist
 
     def _load_images(self):
