@@ -74,3 +74,22 @@ O ambiente conta com 4 configurações pré montadas `shop` `mall` `health` `fil
   - **Aceita:** Boolean
   - Faz com que a função .close() retorne um dict com os dados da simulação, pode ser usado para analise de dados.
   - **Grande impacto na performance, não use durante o treinamento.**
+
+## Treinamento
+Exemplo do processo de treinamento pode ser encontrado em [/train/agileRL_MADDPG_train.py](https://github.com/Infravermlho/crowd-rl/blob/main/train/agileRL_MADDPG_train.py)
+
+**Executando o treinamento**
+```bash
+# Execute no root do projeto
+pip install ./crowd-rl
+pip install -r requirements.txt
+python ./train/agileRL_MADDPG_train.py
+```
+
+**Assistir o resultado**
+```bash
+# Execute no root do projeto
+pip install ./crowd-rl
+pip install -r requirements.txt
+python ./train/agileRL_MADDPG_watch.py
+```
