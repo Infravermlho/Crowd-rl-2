@@ -49,12 +49,12 @@ while env.agents:
 
 env.close()
 ```
-O ambiente conta com 4 configurações pré montadas `shop` `mall` `health` `filter` e mais podem ser criadas utilizando a documentação
+O ambiente conta com 4 configurações pré montadas `filter` `items` `mall` `small` e mais podem ser criadas utilizando a [documentação](https://github.com/Infravermlho/crowd-rl/tree/main/crowd-rl/crowd_rl/sample_configs)
 
 #### Parametros:
 - `config`
   - **Obrigatorio**
-  - Aceita um dict ou json no formato defindo aqui
+  - Aceita um dict ou json no formato defindo [aqui](https://github.com/Infravermlho/crowd-rl/tree/main/crowd-rl/crowd_rl/sample_configs)
 - `render_mode`
   - **Opcional = None** 
   - **Aceita:** None | "human" | "rbg_array"
