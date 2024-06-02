@@ -11,6 +11,7 @@
 | exits      | Lista com as saidas, definindo sua posição e quais grupos de agentes podem a usar                                                                                             | [{ <br>"pos": {"x":4,"y":0},  <br>"accepts": ["common", "pref"] <br>}]                                                                                                                                                                                                                                       |
 | worldmap   | Matriz 2d contendo zeros e uns representando a planta do local                                                                                                                | [ <br>        [1, 1, 1, 1, 0, 1], <br>        [1, 0, 0, 0, 0, 1], <br>        [1, 0, 0, 0, 0, 1], <br>        [1, 0, 0, 0, 0, 1], <br>        [1, 0, 0, 0, 0, 1], <br>        [1, 0, 1, 0, 0, 1], <br>        [0, 0, 0, 0, 0, 1], <br>        [1, 1, 1, 1, 1, 1], <br>], |
 
+Criando uma config custom e iniciando um ambiente
 ```python
 config = {
     "attendants": [
