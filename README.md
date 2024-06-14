@@ -16,7 +16,7 @@ pip install ./crowd-rl/crowd-rl
 **Executando um ambiente pré-incluidos com ações aleatorias**
 ```python
 from crowd_rl import crowd_rl_v0 as crowd
-from crowd_rl.test_configs import mall
+from crowd_rl.sample_configs import mall
 
 env = crowd.env(config=mall, render_fps=10, render_mode="human", max_cycles=900)
 env.reset(seed=42)
